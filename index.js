@@ -1,5 +1,11 @@
 import express from "express";
-import { Client, GatewayIntentBits } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  REST,
+  Routes,
+  SlashCommandBuilder
+} from "discord.js";
 
 const app = express();
 
@@ -24,8 +30,28 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-client.once("clientReady", () => {
-  console.log("Bot ready");
+client.once("clientReady", async () => {
+    console.log("Bot ready");
+    const commands = [
+    new SlashCommandBuilder()
+      .setName("test")
+      .setDescription("テストコマンド")
+      .toJSON()
+  ];
+
+  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
+  await rest.put(
+    Routes.applicationCommands(client.user.id),
+    { body: commands }
+  );
+
+  console.log("Slash command registered.");
+  // ←ここにスラッシュコマンド登録処理を追加
+});
+
+client.on("interactionCreate", async interaction => {
+  // コマンド処理
 });
 
 client.login(process.env.TOKEN);
