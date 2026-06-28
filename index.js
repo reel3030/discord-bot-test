@@ -51,7 +51,13 @@ client.once("clientReady", async () => {
 });
 
 client.on("interactionCreate", async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+if (interaction.commandName === "test") {
+  await interaction.reply("test");
+}
   // コマンド処理
 });
+
 
 client.login(process.env.TOKEN);
