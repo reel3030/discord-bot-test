@@ -1,4 +1,5 @@
 import express from "express";
+import pool from "./db.js";
 import {
   Client,
   GatewayIntentBits,
@@ -31,6 +32,23 @@ const client = new Client({
 });
 
 client.once("clientReady", async () => {
+   try {
+    const result = await pool.query("SELECT NOW()");
+    console.log("PostgreSQL接続成功:", result.rows[0]);
+  } catch (err) {
+    console.error("PostgreSQL接続失敗:", err);
+  }
+  
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+      id BIGINT PRIMARY KEY,
+      balance BIGINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    console.log("usersテーブルを確認しました");
+
     console.log("Bot ready");
     const commands = [
     new SlashCommandBuilder()
@@ -51,7 +69,13 @@ client.once("clientReady", async () => {
 });
 
 client.on("interactionCreate", async interaction => {
+  if (!interaction.isChatInputCommand()) return;
+
+if (interaction.commandName === "test") {
+  await interaction.reply("test");
+}
   // コマンド処理
 });
+
 
 client.login(process.env.TOKEN);
