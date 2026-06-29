@@ -63,11 +63,13 @@ client.once("clientReady", async () => {
   ];
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-
-  await rest.put(
-    Routes.applicationCommands(client.user.id),
-    { body: commands }
-  );
+await rest.put(
+  Routes.applicationGuildCommands(
+    client.user.id,
+    process.env.GUILD_ID
+  ),
+  { body: commands }
+);
 
   console.log("Slash command registered.");
   // ←ここにスラッシュコマンド登録処理を追加
