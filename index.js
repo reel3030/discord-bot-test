@@ -55,6 +55,11 @@ client.once("clientReady", async () => {
       .setName("test")
       .setDescription("テストコマンド")
       .toJSON()
+      ,
+    new SlashCommandBuilder()
+      .setName("balance")
+      .setDescription("所持金を確認します")
+      .toJSON()
   ];
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
@@ -71,9 +76,28 @@ client.once("clientReady", async () => {
 client.on("interactionCreate", async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
-if (interaction.commandName === "test") {
+  if (interaction.commandName === "test") {
   await interaction.reply("test");
-}
+  }
+   if (interaction.commandName === "balance") {
+
+   await pool.query(
+      `INSERT INTO users (id)
+       VALUES ($1)
+       ON CONFLICT (id) DO NOTHING`,
+      [interaction.user.id]
+   );
+
+   const result = await pool.query(
+     `SELECT balance FROM users WHERE id = $1`,
+     [interaction.user.id]
+    );
+
+   const balance = result.rows[0].balance;
+
+   await interaction.reply(`💰 あなたの所持金は **${balance}円** です！`);
+  }
+
   // コマンド処理
 });
 
