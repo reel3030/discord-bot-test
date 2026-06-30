@@ -55,7 +55,6 @@ CREATE TABLE IF NOT EXISTS jobs (
   id SERIAL PRIMARY KEY,
   guild_id BIGINT NOT NULL,
   name TEXT NOT NULL,
-  work_message TEXT NOT NULL,
   min_reward INTEGER NOT NULL,
   max_reward INTEGER NOT NULL,
   cooldown INTEGER NOT NULL,
@@ -64,6 +63,16 @@ CREATE TABLE IF NOT EXISTS jobs (
 `);
 
 console.log("jobsテーブルを確認しました");
+
+await pool.query(`
+CREATE TABLE IF NOT EXISTS job_messages (
+  id SERIAL PRIMARY KEY,
+  job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+  message TEXT NOT NULL
+)
+`);
+
+console.log("job_messagesテーブルを確認しました");
 
 await pool.query(`
 ALTER TABLE users
@@ -121,12 +130,20 @@ new SlashCommandBuilder()
           .setDescription("クールダウン（秒）")
           .setRequired(true)
       )
+
       .addStringOption(option =>
-        option
-          .setName("message")
-          .setDescription("仕事メッセージ")
+         option
+          .setName("unit")
+          .setDescription("クールダウンの単位")
           .setRequired(true)
-      )
+          .addChoices(
+          { name: "秒", value: "seconds" },
+          { name: "分", value: "minutes" },
+          { name: "時間", value: "hours" },
+          { name: "日", value: "days" },
+          { name: "年", value: "years" }
+    )
+)
   )
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .toJSON()
@@ -171,7 +188,25 @@ client.on("interactionCreate", async interaction => {
   const minReward = interaction.options.getInteger("min_reward");
   const maxReward = interaction.options.getInteger("max_reward");
   const cooldown = interaction.options.getInteger("cooldown");
-  const message = interaction.options.getString("message");
+
+  const unit = interaction.options.getString("unit");
+
+let cooldownSeconds = cooldown;
+
+switch (unit) {
+  case "minutes":
+    cooldownSeconds *= 60;
+    break;
+  case "hours":
+    cooldownSeconds *= 60 * 60;
+    break;
+  case "days":
+    cooldownSeconds *= 60 * 60 * 24;
+    break;
+  case "years":
+    cooldownSeconds *= 60 * 60 * 24 * 365;
+    break;
+}
 
   if (minReward > maxReward) {
     return interaction.reply({
@@ -180,19 +215,18 @@ client.on("interactionCreate", async interaction => {
     });
   }
 
-  await pool.query(
-    `INSERT INTO jobs
-    (guild_id, name, work_message, min_reward, max_reward, cooldown)
-    VALUES ($1, $2, $3, $4, $5, $6)`,
-    [
-      interaction.guild.id,
-      name,
-      message,
-      minReward,
-      maxReward,
-      cooldown
-    ]
-  );
+await pool.query(
+  `INSERT INTO jobs
+  (guild_id, name, min_reward, max_reward, cooldown)
+  VALUES ($1, $2, $3, $4, $5)`,
+  [
+    interaction.guild.id,
+    name,
+    minReward,
+    maxReward,
+    cooldownSeconds,
+  ]
+);
 
   await interaction.reply(`✅ 職業「${name}」を作成しました！`);
 }
