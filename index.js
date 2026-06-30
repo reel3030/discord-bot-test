@@ -49,6 +49,33 @@ client.once("clientReady", async () => {
 
     console.log("usersテーブルを確認しました");
 
+    await pool.query(`
+CREATE TABLE IF NOT EXISTS jobs (
+  id SERIAL PRIMARY KEY,
+  guild_id BIGINT NOT NULL,
+  name TEXT NOT NULL,
+  work_message TEXT NOT NULL,
+  min_reward INTEGER NOT NULL,
+  max_reward INTEGER NOT NULL,
+  cooldown INTEGER NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+`);
+
+console.log("jobsテーブルを確認しました");
+
+await pool.query(`
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS job_id INTEGER
+`);
+
+await pool.query(`
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS last_work TIMESTAMP
+`);
+
+console.log("usersテーブルを更新しました");
+
     console.log("Bot ready");
     const commands = [
     new SlashCommandBuilder()
