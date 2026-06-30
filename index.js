@@ -94,7 +94,6 @@ await rest.put(
   Routes.applicationCommands(client.user.id),
   { body: [] }
 );
-
   console.log("Slash command registered.");
   // ←ここにスラッシュコマンド登録処理を追加
 });
