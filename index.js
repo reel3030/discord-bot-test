@@ -5,7 +5,8 @@ import {
   GatewayIntentBits,
   REST,
   Routes,
-  SlashCommandBuilder
+  SlashCommandBuilder,
+  PermissionFlagsBits
 } from "discord.js";
 
 const app = express();
@@ -66,7 +67,7 @@ console.log("jobsテーブルを確認しました");
 
 await pool.query(`
 ALTER TABLE users
-ADD COLUMN IF NOT EXISTS job_id INTEGER
+ADD COLUMN IF NOT EXISTS job_id INTEGER REFERENCES jobs(id)
 `);
 
 await pool.query(`
@@ -87,6 +88,48 @@ console.log("usersテーブルを更新しました");
       .setName("balance")
       .setDescription("所持金を確認します")
       .toJSON()
+
+       ,
+new SlashCommandBuilder()
+  .setName("job")
+  .setDescription("職業管理")
+  .addSubcommand(subcommand =>
+    subcommand
+      .setName("create")
+      .setDescription("職業を作成")
+      .addStringOption(option =>
+        option
+          .setName("name")
+          .setDescription("職業名")
+          .setRequired(true)
+      )
+      .addIntegerOption(option =>
+        option
+          .setName("min_reward")
+          .setDescription("最低報酬")
+          .setRequired(true)
+      )
+      .addIntegerOption(option =>
+        option
+          .setName("max_reward")
+          .setDescription("最大報酬")
+          .setRequired(true)
+      )
+      .addIntegerOption(option =>
+        option
+          .setName("cooldown")
+          .setDescription("クールダウン（秒）")
+          .setRequired(true)
+      )
+      .addStringOption(option =>
+        option
+          .setName("message")
+          .setDescription("仕事メッセージ")
+          .setRequired(true)
+      )
+  )
+  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+  .toJSON()
   ];
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
@@ -118,6 +161,41 @@ client.on("interactionCreate", async interaction => {
        ON CONFLICT (id) DO NOTHING`,
       [interaction.user.id]
    );
+
+   if (
+  interaction.commandName === "job" &&
+  interaction.options.getSubcommand() === "create"
+) {
+
+  const name = interaction.options.getString("name");
+  const minReward = interaction.options.getInteger("min_reward");
+  const maxReward = interaction.options.getInteger("max_reward");
+  const cooldown = interaction.options.getInteger("cooldown");
+  const message = interaction.options.getString("message");
+
+  if (minReward > maxReward) {
+    return interaction.reply({
+      content: "❌ 最低報酬は最大報酬以下にしてください。",
+      ephemeral: true
+    });
+  }
+
+  await pool.query(
+    `INSERT INTO jobs
+    (guild_id, name, work_message, min_reward, max_reward, cooldown)
+    VALUES ($1, $2, $3, $4, $5, $6)`,
+    [
+      interaction.guild.id,
+      name,
+      message,
+      minReward,
+      maxReward,
+      cooldown
+    ]
+  );
+
+  await interaction.reply(`✅ 職業「${name}」を作成しました！`);
+}
 
    const result = await pool.query(
      `SELECT balance FROM users WHERE id = $1`,
