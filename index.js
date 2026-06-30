@@ -76,7 +76,7 @@ ADD COLUMN IF NOT EXISTS last_work TIMESTAMP
 
 console.log("usersテーブルを更新しました");
 
-    console.log("Bot ready");
+
     const commands = [
     new SlashCommandBuilder()
       .setName("test")
@@ -90,11 +90,17 @@ console.log("usersテーブルを更新しました");
   ];
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
 await rest.put(
-  Routes.applicationCommands(client.user.id),
-  { body: [] }
+  Routes.applicationGuildCommands(
+    client.user.id,
+    process.env.GUILD_ID
+  ),
+  { body: commands }
 );
+
   console.log("Slash command registered.");
+  console.log("Bot ready");
   // ←ここにスラッシュコマンド登録処理を追加
 });
 
