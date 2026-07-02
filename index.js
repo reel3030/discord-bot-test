@@ -179,7 +179,19 @@ client.on("interactionCreate", async interaction => {
       [interaction.user.id]
    );
 
-   if (
+
+
+   const result = await pool.query(
+     `SELECT balance FROM users WHERE id = $1`,
+     [interaction.user.id]
+    );
+
+   const balance = result.rows[0].balance;
+
+   await interaction.reply(`💰 あなたの所持金は **${balance}円** です！`);
+  }
+
+     if (
   interaction.commandName === "job" &&
   interaction.options.getSubcommand() === "create"
 ) {
@@ -230,16 +242,6 @@ await pool.query(
 
   await interaction.reply(`✅ 職業「${name}」を作成しました！`);
 }
-
-   const result = await pool.query(
-     `SELECT balance FROM users WHERE id = $1`,
-     [interaction.user.id]
-    );
-
-   const balance = result.rows[0].balance;
-
-   await interaction.reply(`💰 あなたの所持金は **${balance}円** です！`);
-  }
 
   // コマンド処理
 });
