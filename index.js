@@ -150,7 +150,44 @@ new SlashCommandBuilder()
           { name: "日", value: "days" },
           { name: "年", value: "years" }
     )
+
+        .addStringOption(option =>
+      option
+        .setName("message1")
+        .setDescription("仕事メッセージ1")
+        .setRequired(true)
+    )
+
+    .addStringOption(option =>
+      option
+        .setName("message2")
+        .setDescription("仕事メッセージ2")
+        .setRequired(false)
+    )
+
+    .addStringOption(option =>
+      option
+        .setName("message3")
+        .setDescription("仕事メッセージ3")
+        .setRequired(false)
+    )
+
+    .addStringOption(option =>
+      option
+        .setName("message4")
+        .setDescription("仕事メッセージ4")
+        .setRequired(false)
+    )
+
+    .addStringOption(option =>
+      option
+        .setName("message5")
+        .setDescription("仕事メッセージ5")
+        .setRequired(false)
+    )
 )
+
+
   )
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
   .toJSON()
@@ -210,6 +247,9 @@ client.on("interactionCreate", async interaction => {
         const cooldown = interaction.options.getInteger("cooldown");
         const unit = interaction.options.getString("unit");
 
+        const messages = [
+
+
         let cooldownSeconds = cooldown;
 
         switch (unit) {
@@ -235,10 +275,11 @@ client.on("interactionCreate", async interaction => {
           return;
         }
 
-        await pool.query(
+        const jobResult = await pool.query(
           `INSERT INTO jobs
           (guild_id, name, min_reward, max_reward, cooldown)
-          VALUES ($1, $2, $3, $4, $5)`,
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING id`,
           [
             interaction.guild.id,
             name,
@@ -248,7 +289,22 @@ client.on("interactionCreate", async interaction => {
           ]
         );
 
-        await interaction.reply(`✅ 職業「${name}」を作成しました！`);
+        const jobId = jobResult.rows[0].id;
+
+        for (const message of messages) {
+        await pool.query(
+          `INSERT INTO job_messages
+          (job_id, message)
+          VALUES ($1, $2)`,
+          [jobId, message]
+        );
+      }
+
+
+
+      await interaction.reply(
+        `✅ 職業「${name}」を作成しました！\n📝 ${messages.length}件の仕事メッセージを登録しました。`
+      );
         return;
       }
     }
