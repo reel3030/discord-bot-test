@@ -40,6 +40,13 @@ client.once("clientReady", async () => {
     console.error("PostgreSQL接続失敗:", err);
   }
   
+await pool.query(`
+DROP TABLE IF EXISTS job_messages;
+`);
+
+await pool.query(`
+DROP TABLE IF EXISTS jobs;
+`);
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
       id BIGINT PRIMARY KEY,
