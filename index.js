@@ -18,7 +18,7 @@ const client = new Client({
 
 client.once("clientReady", async () => {
 
-  console.log(`Bot ready: ${client.user.tag}`
+  console.log(`Bot ready: ${client.user.tag}`);
 
 
 
