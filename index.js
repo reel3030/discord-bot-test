@@ -107,6 +107,10 @@ ADD COLUMN IF NOT EXISTS last_work TIMESTAMP
 
   const commands = [
     new SlashCommandBuilder()
+      .setName("verify")
+      .setDescription("認証パネルを送信します")
+      .toJSON(),
+    new SlashCommandBuilder()
       .setName("test")
       .setDescription("テストコマンド")
       .toJSON()
