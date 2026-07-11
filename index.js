@@ -1,12 +1,21 @@
 import express from "express";
-import pool from "./db.js";
+import { Captcha } from "captcha-canvas";
+import crypto from "crypto";
 import {
   Client,
   GatewayIntentBits,
   REST,
   Routes,
   SlashCommandBuilder,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  EmbedBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ActionRowBuilder,
+  AttachmentBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } from "discord.js";
 
 const app = express();
@@ -32,22 +41,24 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
+const captchas = new Map();
+
 client.once("clientReady", async () => {
-   try {
+  try {
     const result = await pool.query("SELECT NOW()");
     console.log("PostgreSQL接続成功:", result.rows[0]);
   } catch (err) {
     console.error("PostgreSQL接続失敗:", err);
   }
-  
-await pool.query(`
+
+  await pool.query(`
 DROP TABLE IF EXISTS job_messages;
 `);
 
-await pool.query(`
+  await pool.query(`
 DROP TABLE IF EXISTS jobs;
 `);
-    await pool.query(`
+  await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
       id BIGINT PRIMARY KEY,
       balance BIGINT NOT NULL DEFAULT 0,
@@ -55,9 +66,9 @@ DROP TABLE IF EXISTS jobs;
       )
     `);
 
-    console.log("usersテーブルを確認しました");
+  console.log("usersテーブルを確認しました");
 
-    await pool.query(`
+  await pool.query(`
 CREATE TABLE IF NOT EXISTS jobs (
   id SERIAL PRIMARY KEY,
   guild_id BIGINT NOT NULL,
@@ -69,9 +80,9 @@ CREATE TABLE IF NOT EXISTS jobs (
 )
 `);
 
-console.log("jobsテーブルを確認しました");
+  console.log("jobsテーブルを確認しました");
 
-await pool.query(`
+  await pool.query(`
 CREATE TABLE IF NOT EXISTS job_messages (
   id SERIAL PRIMARY KEY,
   job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
@@ -79,129 +90,129 @@ CREATE TABLE IF NOT EXISTS job_messages (
 )
 `);
 
-console.log("job_messagesテーブルを確認しました");
+  console.log("job_messagesテーブルを確認しました");
 
-await pool.query(`
+  await pool.query(`
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS job_id INTEGER REFERENCES jobs(id)
 `);
 
-await pool.query(`
+  await pool.query(`
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS last_work TIMESTAMP
 `);
 
-console.log("usersテーブルを更新しました");
+  console.log("usersテーブルを更新しました");
 
 
-    const commands = [
+  const commands = [
     new SlashCommandBuilder()
       .setName("test")
       .setDescription("テストコマンド")
       .toJSON()
-      ,
+    ,
     new SlashCommandBuilder()
       .setName("balance")
       .setDescription("所持金を確認します")
       .toJSON()
 
-       ,
-new SlashCommandBuilder()
-  .setName("job")
-  .setDescription("職業管理")
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName("create")
-      .setDescription("職業を作成")
-      .addStringOption(option =>
-        option
-          .setName("name")
-          .setDescription("職業名")
-          .setRequired(true)
+    ,
+    new SlashCommandBuilder()
+      .setName("job")
+      .setDescription("職業管理")
+      .addSubcommand(subcommand =>
+        subcommand
+          .setName("create")
+          .setDescription("職業を作成")
+          .addStringOption(option =>
+            option
+              .setName("name")
+              .setDescription("職業名")
+              .setRequired(true)
+          )
+          .addIntegerOption(option =>
+            option
+              .setName("min_reward")
+              .setDescription("最低報酬")
+              .setRequired(true)
+          )
+          .addIntegerOption(option =>
+            option
+              .setName("max_reward")
+              .setDescription("最大報酬")
+              .setRequired(true)
+          )
+          .addIntegerOption(option =>
+            option
+              .setName("cooldown")
+              .setDescription("クールダウン（秒）")
+              .setRequired(true)
+          )
+
+          .addStringOption(option =>
+            option
+              .setName("unit")
+              .setDescription("クールダウンの単位")
+              .setRequired(true)
+              .addChoices(
+                { name: "秒", value: "seconds" },
+                { name: "分", value: "minutes" },
+                { name: "時間", value: "hours" },
+                { name: "日", value: "days" },
+                { name: "年", value: "years" }
+              )
+
+              .addStringOption(option =>
+                option
+                  .setName("message1")
+                  .setDescription("仕事メッセージ1")
+                  .setRequired(true)
+              )
+
+              .addStringOption(option =>
+                option
+                  .setName("message2")
+                  .setDescription("仕事メッセージ2")
+                  .setRequired(false)
+              )
+
+              .addStringOption(option =>
+                option
+                  .setName("message3")
+                  .setDescription("仕事メッセージ3")
+                  .setRequired(false)
+              )
+
+              .addStringOption(option =>
+                option
+                  .setName("message4")
+                  .setDescription("仕事メッセージ4")
+                  .setRequired(false)
+              )
+
+              .addStringOption(option =>
+                option
+                  .setName("message5")
+                  .setDescription("仕事メッセージ5")
+                  .setRequired(false)
+              )
+          )
+
+
       )
-      .addIntegerOption(option =>
-        option
-          .setName("min_reward")
-          .setDescription("最低報酬")
-          .setRequired(true)
-      )
-      .addIntegerOption(option =>
-        option
-          .setName("max_reward")
-          .setDescription("最大報酬")
-          .setRequired(true)
-      )
-      .addIntegerOption(option =>
-        option
-          .setName("cooldown")
-          .setDescription("クールダウン（秒）")
-          .setRequired(true)
-      )
-
-      .addStringOption(option =>
-         option
-          .setName("unit")
-          .setDescription("クールダウンの単位")
-          .setRequired(true)
-          .addChoices(
-          { name: "秒", value: "seconds" },
-          { name: "分", value: "minutes" },
-          { name: "時間", value: "hours" },
-          { name: "日", value: "days" },
-          { name: "年", value: "years" }
-    )
-
-        .addStringOption(option =>
-      option
-        .setName("message1")
-        .setDescription("仕事メッセージ1")
-        .setRequired(true)
-    )
-
-    .addStringOption(option =>
-      option
-        .setName("message2")
-        .setDescription("仕事メッセージ2")
-        .setRequired(false)
-    )
-
-    .addStringOption(option =>
-      option
-        .setName("message3")
-        .setDescription("仕事メッセージ3")
-        .setRequired(false)
-    )
-
-    .addStringOption(option =>
-      option
-        .setName("message4")
-        .setDescription("仕事メッセージ4")
-        .setRequired(false)
-    )
-
-    .addStringOption(option =>
-      option
-        .setName("message5")
-        .setDescription("仕事メッセージ5")
-        .setRequired(false)
-    )
-)
-
-
-  )
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-  .toJSON()
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .toJSON()
   ];
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
-await rest.put(
-  Routes.applicationGuildCommands(
-    client.user.id,
-    process.env.GUILD_ID
-  ),
-  { body: commands }
-);
+  await rest.put(
+    Routes.applicationGuildCommands(
+      client.user.id,
+      process.env.GUILD_ID
+    ),
+    { body: commands }
+  );
 
   console.log("Slash command registered.");
   console.log("Bot ready");
@@ -250,7 +261,7 @@ client.on("interactionCreate", async interaction => {
         const messages = [
 
 
-        let cooldownSeconds = cooldown;
+          let cooldownSeconds = cooldown;
 
         switch (unit) {
           case "minutes":
@@ -292,19 +303,19 @@ client.on("interactionCreate", async interaction => {
         const jobId = jobResult.rows[0].id;
 
         for (const message of messages) {
-        await pool.query(
-          `INSERT INTO job_messages
+          await pool.query(
+            `INSERT INTO job_messages
           (job_id, message)
           VALUES ($1, $2)`,
-          [jobId, message]
+            [jobId, message]
+          );
+        }
+
+
+
+        await interaction.reply(
+          `✅ 職業「${name}」を作成しました！\n📝 ${messages.length}件の仕事メッセージを登録しました。`
         );
-      }
-
-
-
-      await interaction.reply(
-        `✅ 職業「${name}」を作成しました！\n📝 ${messages.length}件の仕事メッセージを登録しました。`
-      );
         return;
       }
     }
