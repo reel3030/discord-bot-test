@@ -2,42 +2,23 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import { Captcha } from "captcha-canvas";
-import crypto from "crypto";
-import { Captcha } from "captcha-canvas";
-import crypto from "crypto";
 import {
   Client,
-  GatewayIntentBits,
-  REST,
-  Routes,
-  SlashCommandBuilder,
-  EmbedBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ActionRowBuilder,
-  AttachmentBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle
+  GatewayIntentBits
 } from "discord.js";
 
 const app = express();
 
 const client = new Client({
-  const captchas = new Map();
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.GuildMembers
   ]
 });
-const captchas = new Map();
 
 client.once("clientReady", async () => {
 
-  console.log(`Bot ready: ${client.user.tag}`);
+  console.log(`Bot ready: ${client.user.tag}`
 
 
 
