@@ -4,6 +4,8 @@ dotenv.config();
 import express from "express";
 import { Captcha } from "captcha-canvas";
 import crypto from "crypto";
+import { Captcha } from "captcha-canvas";
+import crypto from "crypto";
 import {
   Client,
   GatewayIntentBits,
@@ -31,10 +33,11 @@ const client = new Client({
     GatewayIntentBits.MessageContent
   ]
 });
+const captchas = new Map();
 
 client.once("clientReady", async () => {
 
-  console.log(`Bot ready: ${client.user.tag}`
+  console.log(`Bot ready: ${client.user.tag}`);
 
 
 
