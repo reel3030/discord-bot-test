@@ -39,6 +39,8 @@ app.listen(PORT, () => {
 // Discord Bot
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
+  GatewayIntentBits.GuildMessages,
+  GatewayIntentBits.MessageContent,
 });
 
 const captchas = new Map();
@@ -106,10 +108,6 @@ ADD COLUMN IF NOT EXISTS last_work TIMESTAMP
 
 
   const commands = [
-    new SlashCommandBuilder()
-      .setName("verify")
-      .setDescription("認証パネルを送信します")
-      .toJSON(),
     new SlashCommandBuilder()
       .setName("test")
       .setDescription("テストコマンド")
@@ -224,116 +222,144 @@ ADD COLUMN IF NOT EXISTS last_work TIMESTAMP
 });
 
 client.on("interactionCreate", async interaction => {
-  try {
-    if (!interaction.isChatInputCommand()) return;
 
-    if (interaction.commandName === "test") {
-      await interaction.reply("test");
-      return;
-    }
 
-    if (interaction.commandName === "balance") {
-      await pool.query(
-        `INSERT INTO users (id)
+  const embed = new EmbedBuilder()
+    .setTitle("認証")
+    .setDescription(
+      "認証をすると、<@&1467451539722342552>が付与され、サーバーで喋れるようになります。"
+    )
+    .setColor("Green");
+}
+  const button = new ButtonBuilder()
+  .setCustomId("verify")
+  .setLabel("認証する")
+  .setStyle(ButtonStyle.Success);
+const row = new ActionRowBuilder().addComponents(button);
+await interaction.reply({
+  embeds: [embed],
+  components: [row]
+});
+
+client.on("messageCreate", async message => {
+  if (message.author.bot) return;
+
+  if (message.content !== "rsbot!verify") return;
+  if (!message.member.roles.cache.has(process.env.VERIFY_MANAGER_ROLE_ID)) {
+    return;
+  }
+});
+
+try {
+  if (!interaction.isChatInputCommand()) return;
+
+  if (interaction.commandName === "test") {
+    await interaction.reply("test");
+    return;
+  }
+
+  if (interaction.commandName === "balance") {
+    await pool.query(
+      `INSERT INTO users (id)
          VALUES ($1)
          ON CONFLICT (id) DO NOTHING`,
-        [interaction.user.id]
-      );
+      [interaction.user.id]
+    );
 
-      const result = await pool.query(
-        `SELECT balance FROM users WHERE id = $1`,
-        [interaction.user.id]
-      );
+    const result = await pool.query(
+      `SELECT balance FROM users WHERE id = $1`,
+      [interaction.user.id]
+    );
 
-      const balance = result.rows[0].balance;
+    const balance = result.rows[0].balance;
 
-      await interaction.reply(`💰 あなたの所持金は **${balance}円** です！`);
-      return;
-    }
+    await interaction.reply(`💰 あなたの所持金は **${balance}円** です！`);
+    return;
+  }
 
-    if (interaction.commandName === "job") {
-      const subcommand = interaction.options.getSubcommand();
+  if (interaction.commandName === "job") {
+    const subcommand = interaction.options.getSubcommand();
 
-      if (subcommand === "create") {
+    if (subcommand === "create") {
 
-        const name = interaction.options.getString("name");
-        const minReward = interaction.options.getInteger("min_reward");
-        const maxReward = interaction.options.getInteger("max_reward");
-        const cooldown = interaction.options.getInteger("cooldown");
-        const unit = interaction.options.getString("unit");
+      const name = interaction.options.getString("name");
+      const minReward = interaction.options.getInteger("min_reward");
+      const maxReward = interaction.options.getInteger("max_reward");
+      const cooldown = interaction.options.getInteger("cooldown");
+      const unit = interaction.options.getString("unit");
 
-        const messages = [
+      const messages = [
 
 
-          let cooldownSeconds = cooldown;
+        let cooldownSeconds = cooldown;
 
-        switch (unit) {
-          case "minutes":
-            cooldownSeconds *= 60;
-            break;
-          case "hours":
-            cooldownSeconds *= 60 * 60;
-            break;
-          case "days":
-            cooldownSeconds *= 60 * 60 * 24;
-            break;
-          case "years":
-            cooldownSeconds *= 60 * 60 * 24 * 365;
-            break;
-        }
+      switch (unit) {
+        case "minutes":
+          cooldownSeconds *= 60;
+          break;
+        case "hours":
+          cooldownSeconds *= 60 * 60;
+          break;
+        case "days":
+          cooldownSeconds *= 60 * 60 * 24;
+          break;
+        case "years":
+          cooldownSeconds *= 60 * 60 * 24 * 365;
+          break;
+      }
 
-        if (minReward > maxReward) {
-          await interaction.reply({
-            content: "❌ 最低報酬は最大報酬以下にしてください。",
-            ephemeral: true
-          });
-          return;
-        }
+      if (minReward > maxReward) {
+        await interaction.reply({
+          content: "❌ 最低報酬は最大報酬以下にしてください。",
+          ephemeral: true
+        });
+        return;
+      }
 
-        const jobResult = await pool.query(
-          `INSERT INTO jobs
+      const jobResult = await pool.query(
+        `INSERT INTO jobs
           (guild_id, name, min_reward, max_reward, cooldown)
           VALUES ($1, $2, $3, $4, $5)
           RETURNING id`,
-          [
-            interaction.guild.id,
-            name,
-            minReward,
-            maxReward,
-            cooldownSeconds
-          ]
-        );
+        [
+          interaction.guild.id,
+          name,
+          minReward,
+          maxReward,
+          cooldownSeconds
+        ]
+      );
 
-        const jobId = jobResult.rows[0].id;
+      const jobId = jobResult.rows[0].id;
 
-        for (const message of messages) {
-          await pool.query(
-            `INSERT INTO job_messages
+      for (const message of messages) {
+        await pool.query(
+          `INSERT INTO job_messages
           (job_id, message)
           VALUES ($1, $2)`,
-            [jobId, message]
-          );
-        }
-
-
-
-        await interaction.reply(
-          `✅ 職業「${name}」を作成しました！\n📝 ${messages.length}件の仕事メッセージを登録しました。`
+          [jobId, message]
         );
-        return;
       }
-    }
 
-  } catch (err) {
-    console.error(err);
 
-    if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content: `❌ エラーが発生しました。\n\`\`\`${err.message}\`\`\``,
-        ephemeral: true
-      });
+
+      await interaction.reply(
+        `✅ 職業「${name}」を作成しました！\n📝 ${messages.length}件の仕事メッセージを登録しました。`
+      );
+      return;
     }
   }
+
+} catch (err) {
+  console.error(err);
+
+  if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
+    await interaction.reply({
+      content: `❌ エラーが発生しました。\n\`\`\`${err.message}\`\`\``,
+      ephemeral: true
+    });
+  }
+}
 });
 
 
